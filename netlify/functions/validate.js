@@ -1,5 +1,3 @@
-const { GoogleGenAI } = require("@google/genai");
-
 const STAGE_2_PROMPT = `You are a startup analyst conducting a first-pass evaluation of a new
 venture idea. You think rigorously, avoid generic filler, and flag
 weak assumptions rather than validating them by default. You are
@@ -118,64 +116,56 @@ function mockReport(industry, idea) {
 - Launch a landing page with the report preview; measure sign-up conversion before building the full product.`;
 }
 
+const headers = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json",
+};
+
+function ok(body) { return { statusCode: 200, headers, body: JSON.stringify(body) }; }
+function fail(msg, status = 500) { return { statusCode: status, headers, body: JSON.stringify({ error: msg }) }; }
+
 exports.handler = async (event) => {
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Content-Type": "application/json",
-  };
-
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers, body: "" };
-  }
-
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, headers, body: JSON.stringify({ error: "Method not allowed" }) };
-  }
+  if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "" };
+  if (event.httpMethod !== "POST") return fail("Method not allowed", 405);
 
   try {
     const body = JSON.parse(event.body || "{}");
     const { ideaText, industry, answers } = body;
-
-    if (!ideaText?.trim() || !industry) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: "ideaText and industry required" }) };
-    }
+    if (!ideaText?.trim() || !industry) return fail("ideaText and industry required", 400);
 
     const answersText = answers
       ? Object.entries(answers).map(([k, v]) => `Q${parseInt(k) + 1}: ${v}`).join("\n")
       : "(No additional context)";
 
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ report: mockReport(industry, ideaText) }),
-      };
-    }
+    if (!apiKey) return ok({ report: mockReport(industry, ideaText) });
 
-    const genAI = new GoogleGenAI({ apiKey });
-    const response = await genAI.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: `Industry: ${industry}\n\nIdea:\n${ideaText}\n\nAdditional context from founder:\n${answersText}`,
-      config: { systemInstruction: STAGE_2_PROMPT },
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: STAGE_2_PROMPT }] },
+        contents: [{ parts: [{ text: `Industry: ${industry}\n\nIdea:\n${ideaText}\n\nAdditional context from founder:\n${answersText}` }] }],
+      }),
     });
 
-    console.log('Gemini response keys:', Object.keys(response));
-    const reportText = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const json = await res.json();
+    if (!res.ok) {
+      console.error("Gemini API error:", JSON.stringify(json));
+      return fail("Gemini API error: " + (json.error?.message || "unknown"));
+    }
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ report: reportText }),
-    };
+    const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      console.error("No text in response:", JSON.stringify(json));
+      return fail("Empty response from Gemini");
+    }
+
+    return ok({ report: text });
   } catch (err) {
-    console.error("Validation error:", err.message);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: "Validation failed: " + err.message }),
-    };
+    console.error("Validation error:", err);
+    return fail("Validation failed: " + err.message);
   }
 };

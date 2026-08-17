@@ -1,5 +1,3 @@
-const { GoogleGenAI } = require("@google/genai");
-
 const STAGE_1_PROMPT = `You are a startup analyst doing intake triage, not analysis. Your only
 job right now is to decide whether you have enough information to run
 a rigorous investor-style validation later, and if not, ask for it.
@@ -43,65 +41,53 @@ Respond with ONLY valid JSON, no prose outside the JSON object:
   ]
 }`;
 
+const headers = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json",
+};
+
+function ok(body) { return { statusCode: 200, headers, body: JSON.stringify(body) }; }
+function fail(msg, status = 500) { return { statusCode: status, headers, body: JSON.stringify({ error: msg }) }; }
+
 exports.handler = async (event) => {
-  // CORS headers
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Content-Type": "application/json",
-  };
-
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers, body: "" };
-  }
-
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, headers, body: JSON.stringify({ error: "Method not allowed" }) };
-  }
+  if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "" };
+  if (event.httpMethod !== "POST") return fail("Method not allowed", 405);
 
   try {
     const body = JSON.parse(event.body || "{}");
     const { ideaText, industry } = body;
-
-    if (!ideaText?.trim() || !industry) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: "ideaText and industry required" }) };
-    }
+    if (!ideaText?.trim() || !industry) return fail("ideaText and industry required", 400);
 
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      // Fallback: return ready to validate with no questions
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ ready_to_validate: true, detected_gaps: [], questions: [] }),
-      };
-    }
+    if (!apiKey) return ok({ ready_to_validate: true, detected_gaps: [], questions: [] });
 
-    const genAI = new GoogleGenAI({ apiKey });
-    const response = await genAI.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: `Industry: ${industry}\n\nIdea:\n${ideaText}`,
-      config: {
-        systemInstruction: STAGE_1_PROMPT,
-        responseMimeType: "application/json",
-      },
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: STAGE_1_PROMPT }] },
+        contents: [{ parts: [{ text: `Industry: ${industry}\n\nIdea:\n${ideaText}` }] }],
+        generationConfig: { responseMimeType: "application/json" },
+      }),
     });
 
-    console.log('Gemini response keys:', Object.keys(response));
-    const text = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const json = await res.json();
+    if (!res.ok) {
+      console.error("Gemini API error:", JSON.stringify(json));
+      return fail("Gemini API error: " + (json.error?.message || "unknown"));
+    }
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify(JSON.parse(text)),
-    };
+    const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      console.error("No text in response:", JSON.stringify(json));
+      return fail("Empty response from Gemini");
+    }
+
+    return ok(JSON.parse(text));
   } catch (err) {
-    console.error("Gap analysis error:", err.message);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: "Gap analysis failed: " + err.message }),
-    };
+    console.error("Gap analysis error:", err);
+    return fail("Gap analysis failed: " + err.message);
   }
 };
