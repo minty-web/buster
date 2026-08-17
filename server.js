@@ -7,12 +7,7 @@ app.use(cors());
 app.use(express.json({ limit: "50kb" }));
 app.use(express.static("."));
 
-let genAI = null;
-const hasKey = !!process.env.GEMINI_API_KEY;
-if (hasKey) {
-  const { GoogleGenAI } = require("@google/genai");
-  genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-} else {
+if (!process.env.GEMINI_API_KEY) {
   console.warn("GEMINI_API_KEY not set — using mock responses. Get free key at https://aistudio.google.com/app/apikey");
 }
 
@@ -142,23 +137,38 @@ app.post("/api/gap-analysis", async (req, res) => {
   const { ideaText, industry } = req.body;
   if (!ideaText?.trim() || !industry) return res.status(400).json({ error: "ideaText and industry required" });
 
-  if (!genAI) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
     return res.json({ ready_to_validate: true, detected_gaps: [], questions: [] });
   }
 
   try {
-    const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: `Industry: ${industry}\n\nIdea:\n${ideaText}`,
-      config: {
-        systemInstruction: STAGE_1_PROMPT,
-        responseMimeType: "application/json",
-      },
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: STAGE_1_PROMPT }] },
+        contents: [{ parts: [{ text: `Industry: ${industry}\n\nIdea:\n${ideaText}` }] }],
+        generationConfig: { responseMimeType: "application/json" },
+      }),
     });
-    res.json(JSON.parse(response.text));
+
+    const json = await response.json();
+    if (!response.ok) {
+      console.error("Gemini API error:", JSON.stringify(json));
+      return res.status(500).json({ error: "Gemini API error: " + (json.error?.message || "unknown") });
+    }
+
+    const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      console.error("No text in response:", JSON.stringify(json));
+      return res.status(500).json({ error: "Empty response from Gemini" });
+    }
+
+    res.json(JSON.parse(text));
   } catch (err) {
     console.error("Stage 1 error:", err.message);
-    res.status(500).json({ error: "Gap analysis failed" });
+    res.status(500).json({ error: "Gap analysis failed: " + err.message });
   }
 });
 
@@ -170,20 +180,37 @@ app.post("/api/validate", async (req, res) => {
     ? Object.entries(answers).map(([k, v]) => `Q${parseInt(k) + 1}: ${v}`).join("\n")
     : "(No additional context)";
 
-  if (!genAI) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
     return res.json({ report: mockReport(industry, ideaText) });
   }
 
   try {
-    const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: `Industry: ${industry}\n\nIdea:\n${ideaText}\n\nAdditional context from founder:\n${answersText}`,
-      config: { systemInstruction: STAGE_2_PROMPT },
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: STAGE_2_PROMPT }] },
+        contents: [{ parts: [{ text: `Industry: ${industry}\n\nIdea:\n${ideaText}\n\nAdditional context from founder:\n${answersText}` }] }],
+      }),
     });
-    res.json({ report: response.text });
+
+    const json = await response.json();
+    if (!response.ok) {
+      console.error("Gemini API error:", JSON.stringify(json));
+      return res.status(500).json({ error: "Gemini API error: " + (json.error?.message || "unknown") });
+    }
+
+    const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      console.error("No text in response:", JSON.stringify(json));
+      return res.status(500).json({ error: "Empty response from Gemini" });
+    }
+
+    res.json({ report: text });
   } catch (err) {
     console.error("Stage 2 error:", err.message);
-    res.status(500).json({ error: "Validation failed" });
+    res.status(500).json({ error: "Validation failed: " + err.message });
   }
 });
 
