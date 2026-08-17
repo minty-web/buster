@@ -63,7 +63,7 @@ exports.handler = async (event) => {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return ok({ ready_to_validate: true, detected_gaps: [], questions: [] });
 
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
