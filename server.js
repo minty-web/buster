@@ -148,7 +148,7 @@ app.post("/api/gap-analysis", async (req, res) => {
 
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: `Industry: ${industry}\n\nIdea:\n${ideaText}`,
       config: {
         systemInstruction: STAGE_1_PROMPT,
@@ -176,14 +176,14 @@ app.post("/api/validate", async (req, res) => {
 
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: `Industry: ${industry}\n\nIdea:\n${ideaText}\n\nAdditional context from founder:\n${answersText}`,
       config: { systemInstruction: STAGE_2_PROMPT },
     });
     res.json({ report: response.text });
   } catch (err) {
-    console.error("Stage 2 error:", err.message);
-    res.status(500).json({ error: "Validation failed" });
+    console.error("Stage 2 error:", err.message, err.status, JSON.stringify(err.error));
+    res.status(500).json({ error: "Validation failed: " + err.message });
   }
 });
 
