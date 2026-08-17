@@ -1,6 +1,6 @@
-import "dotenv/config";
-import express from "express";
-import cors from "cors";
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
 
 const app = express();
 app.use(cors());
@@ -10,7 +10,7 @@ app.use(express.static("."));
 let genAI = null;
 const hasKey = !!process.env.GEMINI_API_KEY;
 if (hasKey) {
-  const { GoogleGenAI } = await import("@google/genai");
+  const { GoogleGenAI } = require("@google/genai");
   genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 } else {
   console.warn("GEMINI_API_KEY not set — using mock responses. Get free key at https://aistudio.google.com/app/apikey");
@@ -136,7 +136,7 @@ into a stated fact.
 Formatting: exactly these seven numbered headers, verbatim, in order.
 4-5 bullets per section. No content outside the seven sections.`;
 
-/* ── Routes ── */
+/* ─ Routes ── */
 
 app.post("/api/gap-analysis", async (req, res) => {
   const { ideaText, industry } = req.body;
@@ -148,7 +148,7 @@ app.post("/api/gap-analysis", async (req, res) => {
 
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-3.6-flash",
+      model: "gemini-2.0-flash",
       contents: `Industry: ${industry}\n\nIdea:\n${ideaText}`,
       config: {
         systemInstruction: STAGE_1_PROMPT,
@@ -176,18 +176,18 @@ app.post("/api/validate", async (req, res) => {
 
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-3.6-flash",
+      model: "gemini-2.0-flash",
       contents: `Industry: ${industry}\n\nIdea:\n${ideaText}\n\nAdditional context from founder:\n${answersText}`,
       config: { systemInstruction: STAGE_2_PROMPT },
     });
     res.json({ report: response.text });
   } catch (err) {
-    console.error("Stage 2 error:", err.message, err.status, JSON.stringify(err.error));
-    res.status(500).json({ error: "Validation failed: " + err.message });
+    console.error("Stage 2 error:", err.message);
+    res.status(500).json({ error: "Validation failed" });
   }
 });
 
-/* ── Mock fallback ── */
+/* ─ Mock fallback ── */
 
 function mockReport(industry, idea) {
   return `1. VALUE PROPOSITION
