@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BUSTER - Analytics</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22 36C18 36 14 32 14 26C14 20 18 16 22 8" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M22 36C26 36 30 32 30 26C30 20 26 16 22 8" stroke="#888" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="16" y1="36" x2="28" y2="36" stroke="#fff" stroke-width="3"/>
+        <line x1="18" y1="39" x2="26" y2="39" stroke="#fff" stroke-width="2.5"/>
+        <line x1="20" y1="42" x2="24" y2="42" stroke="#fff" stroke-width="2"/>
+        <path d="M10 22L18 14L24 20L30 10L38 6" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M32 6L38 6L38 12" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">BUSTER</div>
+      <div class="logo-sub">IDEAS FOR STARTUPERS</div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <a href="dashboard.html" class="nav-tab">Validate</a>
+    <a href="analytics.html" class="nav-tab active">Analytics</a>
+  </div>
+  <div class="nav-links">
+    <div class="user-profile" id="userBadge" title="User">G</div>
+    <a href="login.html" style="color:#666;font-size:11px;letter-spacing:2px;" onclick="localStorage.removeItem('buster_user')">LOGOUT</a>
+  </div>
+</nav>
+
+<div class="section">
+  <div class="section-title">Analytic Overview</div>
+
+  <div id="noData" class="hidden" style="padding:40px;text-align:center;color:#555;font-size:14px;border:2px solid #333;">
+    No analysis data yet. Go to the <a href="dashboard.html" style="color:#fff;">Validate</a> page and analyze an idea first.
+  </div>
+
+  <div id="analyticsContent">
+    <!-- LATEST ANALYSIS -->
+    <div class="section-title" style="margin-top:8px;">Latest Analysis</div>
+    <div class="result-grid" id="latestGrid" style="margin-bottom:32px;">
+      <div class="result-card">
+        <h4>Value Proposition</h4>
+        <p id="rProp">-</p>
+      </div>
+      <div class="result-card">
+        <h4>Target Users / ICP</h4>
+        <ul id="rUsers"></ul>
+      </div>
+      <div class="result-card">
+        <h4>Competitors &amp; Alternatives</h4>
+        <ul id="rComp"></ul>
+      </div>
+      <div class="result-card">
+        <h4>Risks &amp; Weaknesses</h4>
+        <ul id="rRisk"></ul>
+      </div>
+      <div class="result-card" style="grid-column:1/-1;">
+        <h4>Next Steps</h4>
+        <ul id="rNext"></ul>
+      </div>
+    </div>
+
+    <!-- METRICS -->
+    <div class="section-title">Metrics</div>
+    <div class="metrics">
+      <div class="metric-card">
+        <div class="metric-label">Market Viability</div>
+        <div class="metric-value" id="m1">-</div>
+        <div class="metric-bar"><div class="metric-bar-fill" id="mb1" style="width:0%"></div></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Competition Level</div>
+        <div class="metric-value" id="m2">-</div>
+        <div class="metric-bar"><div class="metric-bar-fill" id="mb2" style="width:0%"></div></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Risk Score</div>
+        <div class="metric-value" id="m3">-</div>
+        <div class="metric-bar"><div class="metric-bar-fill" id="mb3" style="width:0%"></div></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Action Clarity</div>
+        <div class="metric-value" id="m4">-</div>
+        <div class="metric-bar"><div class="metric-bar-fill" id="mb4" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- ALL ANALYSES -->
+    <div class="section-title">All Analyses</div>
+    <div id="allAnalyses" style="border:2px solid #333;background:#0d0d0d;padding:18px;"></div>
+  </div>
+</div>
+
+<footer>
+  BUSTER &mdash; IDEAS FOR STARTUPERS
+</footer>
+
+<script>
+const storage = {
+  get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set: (k, v) => localStorage.setItem(k, JSON.stringify(v))
+};
+
+(function init() {
+  const user = localStorage.getItem('buster_user') || 'Guest';
+  document.getElementById('userBadge').textContent = user.charAt(0).toUpperCase();
+
+  // Collect all stored results
+  const results = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('buster_results_')) {
+      try { results.push({ ts: parseInt(key.split('_').pop()), data: JSON.parse(localStorage.getItem(key)) }); } catch {}
+    }
+  }
+  results.sort((a, b) => b.ts - a.ts);
+
+  if (!results.length) {
+    document.getElementById('analyticsContent').classList.add('hidden');
+    document.getElementById('noData').classList.remove('hidden');
+    return;
+  }
+
+  // Latest
+  populateLatest(results[0].data);
+
+  // All
+  const el = document.getElementById('allAnalyses');
+  el.innerHTML = results.map((r, i) => {
+    const d = r.data;
+    return '<div class="history-item" style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #222;">' +
+      '<div class="hi-label">ANALYSIS ' + (i + 1) + ' - ' + new Date(r.ts).toLocaleString() + '</div>' +
+      '<div style="margin-top:10px;">' +
+      '<div style="font-size:12px;color:#888;margin-bottom:4px;">Viability: <span style="color:#fff;">' + d.viability + '%</span> | Competition: <span style="color:#fff;">' + d.competition + '</span> | Risk: <span style="color:#fff;">' + d.riskScore + '/10</span></div>' +
+      '<div style="font-size:13px;color:#bbb;">' + d.prop + '</div>' +
+      '</div></div>';
+  }).join('');
+})();
+
+function populateLatest(d) {
+  document.getElementById('m1').textContent = d.viability + '%';
+  document.getElementById('m2').textContent = d.competition;
+  document.getElementById('m3').textContent = d.riskScore + '/10';
+  document.getElementById('m4').textContent = d.clarity + '%';
+  document.getElementById('mb1').style.width = d.viability + '%';
+  document.getElementById('mb2').style.width = (d.competition === 'High' ? 80 : d.competition === 'Medium' ? 50 : 25) + '%';
+  document.getElementById('mb3').style.width = (d.riskScore * 10) + '%';
+  document.getElementById('mb4').style.width = d.clarity + '%';
+
+  document.getElementById('rProp').textContent = d.prop;
+  document.getElementById('rUsers').innerHTML = d.users.map(u => '<li>' + u + '</li>').join('');
+  document.getElementById('rComp').innerHTML = d.comp.map(c => '<li>' + c + '</li>').join('');
+  document.getElementById('rRisk').innerHTML = d.risk.map(x => '<li>' + x + '</li>').join('');
+  document.getElementById('rNext').innerHTML = d.next.map(n => '<li>' + n + '</li>').join('');
+}
+</script>
+
+</body>
+</html>
