@@ -405,3 +405,53 @@ footer {
   .hero h1 { font-size: 32px; }
   .nav-tabs { overflow-x: auto; }
 }
+
+/* MARKDOWN REPORT */
+.markdown-report {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #ccc;
+}
+.markdown-report h3 {
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #fff;
+  margin: 20px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #333;
+}
+.markdown-report h3:first-child { margin-top: 0; }
+.markdown-report h4 {
+  font-size: 12px;
+  color: #fff;
+  margin: 16px 0 8px;
+}
+.markdown-report ul { list-style: none; margin: 8px 0; padding-left: 0; }
+.markdown-report li {
+  margin-bottom: 8px;
+  padding-left: 16px;
+  position: relative;
+}
+.markdown-report li::before { content: '->'; position: absolute; left: 0; color: #666; }
+.markdown-report strong { color: #fff; }
+.markdown-report em { color: #aaa; }
+.markdown-report p { margin: 8px 0; }
+
+/* GAP QUESTIONS */
+#gapQuestions { animation: slideDown 0.3s ease; }
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* SELECT */
+select {
+  width: 100%;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
+}
+select option { background: #1a1a1a; color: #fff; }

@@ -36,13 +36,33 @@
   </div>
 </nav>
 
-<div class="main">
+<div class="main" style="display:grid;grid-template-columns:1fr 1fr;gap:0;max-width:1200px;margin:0 auto;">
 
   <!-- IDEA INPUT -->
   <div class="section idea-section" style="grid-column:1/-1;">
     <div class="section-title">Startup Idea</div>
-    <textarea class="idea-input" id="ideaInput" style="width:100%;min-height:120px;background:#1a1a1a;border:2px solid #444;color:#fff;font-family:inherit;font-size:15px;padding:18px;resize:vertical;outline:none;" placeholder="Describe your startup idea in 1-2 sentences..."></textarea>
+
+    <div style="margin-bottom:16px;">
+      <label style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#666;display:block;margin-bottom:8px;">INDUSTRY</label>
+      <select id="industrySelect" style="background:#1a1a1a;border:2px solid #444;color:#fff;font-family:inherit;font-size:14px;padding:12px;outline:none;cursor:pointer;">
+        <option value="">Select industry...</option>
+        <option value="Manufacturing">Manufacturing</option>
+        <option value="Health Tech">Health Tech</option>
+        <option value="Energy">Energy</option>
+        <option value="Advanced Technology">Advanced Technology</option>
+        <option value="Hospitality">Hospitality</option>
+      </select>
+    </div>
+
+    <textarea id="ideaInput" placeholder="Describe your startup idea in 1-2 sentences..." style="width:100%;min-height:120px;background:#1a1a1a;border:2px solid #444;color:#fff;font-family:inherit;font-size:15px;padding:18px;resize:vertical;outline:none;"></textarea>
     <button class="btn-primary" id="btnAnalyze" onclick="analyzeIdea()" style="margin-top:16px;">ANALYZE IDEA</button>
+
+    <!-- GAP QUESTIONS (hidden by default) -->
+    <div id="gapQuestions" class="hidden" style="margin-top:24px;border:2px solid #444;padding:20px;background:#0d0d0d;">
+      <div class="section-title" style="margin-bottom:16px;">Clarifying Questions</div>
+      <div id="questionsList"></div>
+      <button class="btn-primary" id="btnSubmitAnswers" onclick="submitAnswers()" style="margin-top:16px;">SUBMIT & GENERATE REPORT</button>
+    </div>
   </div>
 
   <!-- LEFT: AI CHAT -->
@@ -51,11 +71,11 @@
     <div class="chat-box" id="chatBox">
       <div class="chat-msg ai">
         <div class="label">Buster AI</div>
-        Enter your startup idea above and I'll help you validate it. I can identify your target users, competitors, risks, and suggest next steps.
+        Select an industry and describe your startup idea above. I'll analyze it and generate a full validation report.
       </div>
     </div>
     <div class="chat-input-row">
-      <input type="text" class="chat-input" id="chatInput" placeholder="Ask a follow-up..." onkeydown="if(event.key==='Enter')sendChat()" style="flex:1;background:#1a1a1a;border:2px solid #444;color:#fff;font-family:inherit;font-size:13px;padding:12px;outline:none;">
+      <input type="text" id="chatInput" placeholder="Ask a follow-up..." onkeydown="if(event.key==='Enter')sendChat()" style="flex:1;background:#1a1a1a;border:2px solid #444;color:#fff;font-family:inherit;font-size:13px;padding:12px;outline:none;">
       <button class="btn-send" onclick="sendChat()">SEND</button>
     </div>
   </div>
@@ -70,18 +90,20 @@
 
 </div>
 
-<footer>
+<footer style="text-align:center;padding:24px;font-size:11px;color:#444;letter-spacing:2px;">
   BUSTER &mdash; IDEAS FOR STARTUPERS
 </footer>
 
 <script>
 const history = [];
+let currentGapData = null;
+let currentAnswers = {};
+
 const storage = {
   get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
   set: (k, v) => localStorage.setItem(k, JSON.stringify(v))
 };
 
-// Load history from storage
 (function init() {
   const user = localStorage.getItem('buster_user') || 'Guest';
   document.getElementById('userBadge').textContent = user.charAt(0).toUpperCase();
@@ -90,30 +112,133 @@ const storage = {
   renderHistory();
 })();
 
-function analyzeIdea() {
+async function analyzeIdea() {
+  const industry = document.getElementById('industrySelect').value;
   const input = document.getElementById('ideaInput').value.trim();
-  if (!input) return;
+
+  if (!industry) { alert('Please select an industry.'); return; }
+  if (!input) { alert('Please describe your idea.'); return; }
+
   const btn = document.getElementById('btnAnalyze');
   btn.disabled = true;
   btn.textContent = 'ANALYZING...';
 
-  setTimeout(() => {
-    const r = mockAnalysis(input);
-    storage.set('buster_results_' + Date.now(), r);
-    addChat('ai', 'Analysis complete. Here\'s what I found:\n\n' +
-      'VALUE PROP: ' + r.prop + '\n\n' +
-      'TARGET USERS:\n' + r.users.map(u => '-> ' + u).join('\n') + '\n\n' +
-      'COMPETITORS:\n' + r.comp.map(c => '-> ' + c).join('\n') + '\n\n' +
-      'KEY RISKS:\n' + r.risk.map(x => '-> ' + x).join('\n') + '\n\n' +
-      'NEXT STEPS:\n' + r.next.map(n => '-> ' + n).join('\n') + '\n\nView full metrics on the Analytics page.');
+  addChat('user', `Industry: ${industry}\nIdea: ${input}`);
 
-    history.unshift(input);
-    storage.set('buster_history', history);
-    renderHistory();
+  try {
+    const gapRes = await fetch('/api/gap-analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ideaText: input, industry })
+    });
+    const gapData = await gapRes.json();
 
+    if (gapData.error) {
+      addChat('ai', 'Error: ' + gapData.error);
+      btn.disabled = false;
+      btn.textContent = 'ANALYZE IDEA';
+      return;
+    }
+
+    currentGapData = gapData;
+
+    if (gapData.questions && gapData.questions.length > 0) {
+      showGapQuestions(gapData.questions);
+      btn.disabled = false;
+      btn.textContent = 'ANSWER QUESTIONS FIRST';
+    } else {
+      // Skip to Stage 2
+      await runValidation(input, industry, {});
+    }
+  } catch (err) {
+    addChat('ai', 'Error: ' + err.message);
     btn.disabled = false;
     btn.textContent = 'ANALYZE IDEA';
-  }, 1200);
+  }
+}
+
+function showGapQuestions(questions) {
+  const container = document.getElementById('questionsList');
+  container.innerHTML = questions.map((q, i) => `
+    <div style="margin-bottom:20px;">
+      <label style="font-size:13px;color:#ddd;display:block;margin-bottom:6px;">Q${i + 1}: ${q.question}</label>
+      <div style="font-size:11px;color:#666;margin-bottom:8px;font-style:italic;">Why it matters: ${q.why_it_matters}</div>
+      <input type="text" id="answer${i}" placeholder="Your answer..." style="width:100%;background:#1a1a1a;border:2px solid #444;color:#fff;font-family:inherit;font-size:13px;padding:12px;outline:none;">
+    </div>
+  `).join('');
+  document.getElementById('gapQuestions').classList.remove('hidden');
+}
+
+async function submitAnswers() {
+  if (!currentGapData) return;
+
+  const answers = {};
+  currentGapData.questions.forEach((q, i) => {
+    answers[i] = document.getElementById(`answer${i}`).value.trim();
+  });
+
+  currentAnswers = answers;
+  const btn = document.getElementById('btnSubmitAnswers');
+  btn.disabled = true;
+  btn.textContent = 'GENERATING REPORT...';
+
+  const input = document.getElementById('ideaInput').value.trim();
+  const industry = document.getElementById('industrySelect').value;
+
+  await runValidation(input, industry, answers);
+}
+
+async function runValidation(ideaText, industry, answers) {
+  addChat('ai', '<span class="loading">Generating validation report...</span>');
+
+  try {
+    const res = await fetch('/api/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ideaText, industry, answers })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      addChat('ai', 'Error: ' + data.error);
+      return;
+    }
+
+    // Remove loading message
+    const chatBox = document.getElementById('chatBox');
+    const loadingMsg = chatBox.querySelector('.loading');
+    if (loadingMsg) loadingMsg.parentElement.remove();
+
+    // Add report
+    const reportDiv = document.createElement('div');
+    reportDiv.className = 'chat-msg ai';
+    reportDiv.innerHTML = '<div class="label">Buster AI</div><div class="markdown-report">' + renderMarkdown(data.report) + '</div>';
+    chatBox.appendChild(reportDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    // Save to history
+    const result = {
+      industry,
+      idea: ideaText,
+      report: data.report,
+      answers,
+      timestamp: Date.now()
+    };
+    history.unshift(ideaText);
+    storage.set('buster_history', history);
+    storage.set('buster_report_' + Date.now(), result);
+    renderHistory();
+
+    // Reset form
+    document.getElementById('gapQuestions').classList.add('hidden');
+    document.getElementById('btnAnalyze').disabled = false;
+    document.getElementById('btnAnalyze').textContent = 'ANALYZE IDEA';
+    document.getElementById('btnSubmitAnswers').disabled = false;
+    document.getElementById('btnSubmitAnswers').textContent = 'SUBMIT & GENERATE REPORT';
+
+  } catch (err) {
+    addChat('ai', 'Error: ' + err.message);
+  }
 }
 
 function sendChat() {
@@ -155,52 +280,18 @@ function renderHistory() {
   ).join('');
 }
 
-function mockAnalysis(idea) {
-  // ponytail: static mock, swap for real API call when backend exists
-  return {
-    viability: Math.floor(60 + Math.random() * 30),
-    competition: ['Low', 'Medium', 'High'][Math.floor(Math.random() * 3)],
-    riskScore: Math.floor(3 + Math.random() * 5),
-    clarity: Math.floor(65 + Math.random() * 30),
-    prop: 'A streamlined solution that helps ' + extractAudience(idea) + ' solve ' + extractProblem(idea) + ' without the complexity of existing alternatives.',
-    users: [
-      'Early-stage founders (1-3 person teams)',
-      'Solopreneurs validating side projects',
-      'Product managers exploring new verticals'
-    ],
-    comp: [
-      'Existing tools in the space (feature parity)',
-      'Manual/DIY approaches (spreadsheets, surveys)',
-      'Generic AI chatbots (not purpose-built)'
-    ],
-    risk: [
-      'Unclear willingness-to-pay in this segment',
-      'Established players could copy quickly',
-      'Customer acquisition cost may be high'
-    ],
-    next: [
-      'Interview 10 potential users this week',
-      'Build a 1-page landing page and run $50 in ads',
-      'Create a waitlist to measure real demand',
-      'Map out the core workflow - what\'s the one thing it must do?'
-    ]
-  };
-}
+/* ── Simple Markdown Renderer ── */
 
-function extractAudience(text) {
-  const lower = text.toLowerCase();
-  if (lower.includes('student')) return 'students';
-  if (lower.includes('business') || lower.includes('b2b')) return 'small businesses';
-  if (lower.includes('health') || lower.includes('fitness')) return 'health-conscious individuals';
-  return 'your target audience';
-}
-
-function extractProblem(text) {
-  const lower = text.toLowerCase();
-  if (lower.includes('time') || lower.includes('fast')) return 'time-consuming workflows';
-  if (lower.includes('money') || lower.includes('cost')) return 'cost management challenges';
-  if (lower.includes('data')) return 'data organization problems';
-  return 'their core pain point';
+function renderMarkdown(md) {
+  return md
+    .replace(/^(\d+\.\s+[A-Z][A-Z\s]+)$/gm, '<h3>$1</h3>')
+    .replace(/^###?\s+(.+)$/gm, '<h4>$1</h4>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/<li>([\s\S]*?)<\/li>(?!\s*<li>)/g, '<ul><li>$1</li></ul>')
+    .replace(/\(inferred\)/g, '<span style="color:#888;font-style:italic;">(inferred)</span>')
+    .replace(/\n\n/g, '<br><br>');
 }
 </script>
 
