@@ -5,12 +5,16 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "netlify": "netlify dev"
   },
   "dependencies": {
     "express": "^4.21.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "@google/genai": "^1.0.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
   }
 }

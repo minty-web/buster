@@ -126,7 +126,7 @@ async function analyzeIdea() {
   addChat('user', `Industry: ${industry}\nIdea: ${input}`);
 
   try {
-    const gapRes = await fetch('/api/gap-analysis', {
+    const gapRes = await fetch('/.netlify/functions/gap-analysis', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ideaText: input, industry })
@@ -192,7 +192,7 @@ async function runValidation(ideaText, industry, answers) {
   addChat('ai', '<span class="loading">Generating validation report...</span>');
 
   try {
-    const res = await fetch('/api/validate', {
+    const res = await fetch('/.netlify/functions/validate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ideaText, industry, answers })
