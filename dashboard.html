@@ -199,15 +199,21 @@ async function runValidation(ideaText, industry, answers) {
     });
     const data = await res.json();
 
+    // Remove loading message
+    const chatBox = document.getElementById('chatBox');
+    const loadingMsg = chatBox.querySelector('.loading');
+    if (loadingMsg) loadingMsg.parentElement.remove();
+
     if (data.error) {
       addChat('ai', 'Error: ' + data.error);
       return;
     }
 
-    // Remove loading message
-    const chatBox = document.getElementById('chatBox');
-    const loadingMsg = chatBox.querySelector('.loading');
-    if (loadingMsg) loadingMsg.parentElement.remove();
+    if (!data.report) {
+      addChat('ai', 'Error: No report generated. Check Netlify function logs.');
+      console.error('Validate response:', data);
+      return;
+    }
 
     // Add report
     const reportDiv = document.createElement('div');

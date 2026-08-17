@@ -88,10 +88,13 @@ exports.handler = async (event) => {
       },
     });
 
+    console.log('Gemini response keys:', Object.keys(response));
+    const text = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(JSON.parse(response.text)),
+      body: JSON.stringify(JSON.parse(text)),
     };
   } catch (err) {
     console.error("Gap analysis error:", err.message);

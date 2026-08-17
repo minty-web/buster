@@ -162,10 +162,13 @@ exports.handler = async (event) => {
       config: { systemInstruction: STAGE_2_PROMPT },
     });
 
+    console.log('Gemini response keys:', Object.keys(response));
+    const reportText = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ report: response.text }),
+      body: JSON.stringify({ report: reportText }),
     };
   } catch (err) {
     console.error("Validation error:", err.message);
