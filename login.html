@@ -8,17 +8,17 @@
 </head>
 <body>
 
-<nav>
+<nav class="nav-main">
   <div class="logo">
     <div class="logo-icon">
       <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M22 36C18 36 14 32 14 26C14 20 18 16 22 8" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
-        <path d="M22 36C26 36 30 32 30 26C30 20 26 16 22 8" stroke="#888" stroke-width="2.5" stroke-linecap="round"/>
-        <line x1="16" y1="36" x2="28" y2="36" stroke="#fff" stroke-width="3"/>
-        <line x1="18" y1="39" x2="26" y2="39" stroke="#fff" stroke-width="2.5"/>
-        <line x1="20" y1="42" x2="24" y2="42" stroke="#fff" stroke-width="2"/>
-        <path d="M10 22L18 14L24 20L30 10L38 6" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M32 6L38 6L38 12" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M22 36C18 36 14 32 14 26C14 20 18 16 22 8" stroke="#c8a44e" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M22 36C26 36 30 32 30 26C30 20 26 16 22 8" stroke="#8a7030" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="16" y1="36" x2="28" y2="36" stroke="#c8a44e" stroke-width="3"/>
+        <line x1="18" y1="39" x2="26" y2="39" stroke="#c8a44e" stroke-width="2.5"/>
+        <line x1="20" y1="42" x2="24" y2="42" stroke="#c8a44e" stroke-width="2"/>
+        <path d="M10 22L18 14L24 20L30 10L38 6" stroke="#f0f0f0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M32 6L38 6L38 12" stroke="#f0f0f0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </div>
     <div>
@@ -42,24 +42,23 @@
     <label>PASSWORD</label>
     <input type="password" id="passwordInput" placeholder="Enter password">
 
-    <button type="submit" class="btn-primary" style="width:100%;text-align:center;padding:16px;">SIGN IN</button>
+    <button type="submit" class="btn-primary">SIGN IN</button>
   </form>
 
   <div class="guest-divider">OR</div>
 
-  <button class="btn-link" style="width:100%;text-align:center;padding:16px;" onclick="enterGuest()">
+  <button class="btn-ghost" style="width:100%;text-align:center;padding:14px;" onclick="enterGuest()">
     CONTINUE AS GUEST
   </button>
 </div>
 
-<footer>
+<footer class="footer">
   BUSTER &mdash; IDEAS FOR STARTUPERS
 </footer>
 
 <script>
 function handleLogin(e) {
   e.preventDefault();
-  // ponytail: mock login, no real auth yet
   localStorage.setItem('buster_user', document.getElementById('emailInput').value || 'user');
   window.location.href = 'dashboard.html';
   return false;

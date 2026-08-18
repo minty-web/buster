@@ -8,17 +8,17 @@
 </head>
 <body>
 
-<nav>
+<nav class="nav-main">
   <div class="logo">
     <div class="logo-icon">
       <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M22 36C18 36 14 32 14 26C14 20 18 16 22 8" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
-        <path d="M22 36C26 36 30 32 30 26C30 20 26 16 22 8" stroke="#888" stroke-width="2.5" stroke-linecap="round"/>
-        <line x1="16" y1="36" x2="28" y2="36" stroke="#fff" stroke-width="3"/>
-        <line x1="18" y1="39" x2="26" y2="39" stroke="#fff" stroke-width="2.5"/>
-        <line x1="20" y1="42" x2="24" y2="42" stroke="#fff" stroke-width="2"/>
-        <path d="M10 22L18 14L24 20L30 10L38 6" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M32 6L38 6L38 12" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M22 36C18 36 14 32 14 26C14 20 18 16 22 8" stroke="#c8a44e" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M22 36C26 36 30 32 30 26C30 20 26 16 22 8" stroke="#8a7030" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="16" y1="36" x2="28" y2="36" stroke="#c8a44e" stroke-width="3"/>
+        <line x1="18" y1="39" x2="26" y2="39" stroke="#c8a44e" stroke-width="2.5"/>
+        <line x1="20" y1="42" x2="24" y2="42" stroke="#c8a44e" stroke-width="2"/>
+        <path d="M10 22L18 14L24 20L30 10L38 6" stroke="#f0f0f0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M32 6L38 6L38 12" stroke="#f0f0f0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </div>
     <div>
@@ -32,47 +32,51 @@
   </div>
   <div class="nav-links">
     <div class="user-profile" id="userBadge" title="User">G</div>
-    <a href="login.html" style="color:#666;font-size:11px;letter-spacing:2px;" onclick="localStorage.removeItem('buster_user')">LOGOUT</a>
+    <a href="login.html" onclick="localStorage.removeItem('buster_user')">LOGOUT</a>
   </div>
 </nav>
 
-<div class="section">
-  <div class="section-title">Analytic Overview</div>
+<div class="analytics-section">
+  <div class="section">
+    <div class="section-title">Analytic Overview</div>
 
-  <div id="noData" class="hidden" style="padding:40px;text-align:center;color:#555;font-size:14px;border:2px solid #333;">
-    No analysis data yet. Go to the <a href="dashboard.html" style="color:#fff;">Validate</a> page and analyze an idea first.
-  </div>
+    <div id="noData" class="hidden" style="text-align:center;padding:60px 20px;border:1px solid var(--border);background:var(--bg-card);">
+      <div style="font-size:32px;opacity:.3;margin-bottom:16px;">◇</div>
+      <div style="color:var(--text-dim);font-size:14px;">No analysis data yet.</div>
+      <div style="color:var(--text-muted);font-size:13px;margin-top:8px;">Go to the <a href="dashboard.html">Validate</a> page and analyze an idea first.</div>
+    </div>
 
-  <div id="analyticsContent">
-    <div id="latestReport" style="margin-bottom:32px;"></div>
+    <div id="analyticsContent">
+      <div id="latestReport"></div>
 
-    <div class="section-title">All Analyses</div>
-    <div id="allAnalyses" style="border:2px solid #333;background:#0d0d0d;padding:18px;"></div>
+      <div class="section-title" style="margin-top:32px;">All Analyses</div>
+      <div id="allAnalyses"></div>
+    </div>
   </div>
 </div>
 
-<footer style="text-align:center;padding:24px;font-size:11px;color:#444;letter-spacing:2px;">
+<footer class="footer">
   BUSTER &mdash; IDEAS FOR STARTUPERS
 </footer>
 
 <script>
-const storage = {
-  get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
-  set: (k, v) => localStorage.setItem(k, JSON.stringify(v))
+var storage = {
+  get: function(k) { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } },
+  set: function(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
 };
 
 (function init() {
-  const user = localStorage.getItem('buster_user') || 'Guest';
+  var user = localStorage.getItem('buster_user') || 'Guest';
   document.getElementById('userBadge').textContent = user.charAt(0).toUpperCase();
 
-  const results = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith('buster_report_')) {
-      try { results.push({ ts: parseInt(key.split('_').pop()), data: JSON.parse(localStorage.getItem(key)) }); } catch {}
+  var results = [];
+  for (var i = 0; i < localStorage.length; i++) {
+    var key = localStorage.key(i);
+    if (key && key.indexOf('buster_report_') === 0) {
+      try { results.push({ ts: parseInt(key.split('_').pop()), data: JSON.parse(localStorage.getItem(key)) }); } catch(e) {}
     }
   }
-  results.sort((a, b) => b.ts - a.ts);
+  results.sort(function(a, b) { return b.ts - a.ts; });
 
   if (!results.length) {
     document.getElementById('analyticsContent').classList.add('hidden');
@@ -82,36 +86,35 @@ const storage = {
 
   renderReport(results[0].data, 'latestReport');
 
-  const el = document.getElementById('allAnalyses');
-  el.innerHTML = results.map((r, i) => `
-    <div class="history-item" style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #222;">
-      <div class="hi-label">ANALYSIS ${i + 1} - ${new Date(r.ts).toLocaleString()}</div>
-      <div style="font-size:11px;color:#666;margin:6px 0;">Industry: <span style="color:#fff;">${r.data.industry}</span></div>
-      <div class="hi-text" style="margin-bottom:10px;">${r.data.idea}</div>
-      <details style="cursor:pointer;">
-        <summary style="font-size:12px;color:#888;margin-bottom:10px;">View Full Report</summary>
-        <div class="markdown-report" style="margin-top:10px;">${renderMarkdown(r.data.report)}</div>
-      </details>
-    </div>
-  `).join('');
+  var el = document.getElementById('allAnalyses');
+  var html = '';
+  for (var i = 0; i < results.length; i++) {
+    var r = results[i];
+    html += '<div class="analytics-history-item">' +
+      '<div class="hi-label">ANALYSIS ' + (i + 1) + '</div>' +
+      '<div class="hi-meta">Industry: <span>' + r.data.industry + '</span> &mdash; ' + new Date(r.ts).toLocaleString() + '</div>' +
+      '<div class="hi-text">' + r.data.idea + '</div>' +
+      '<details><summary>View Full Report</summary><div class="markdown-report" style="margin-top:12px;">' + renderMarkdown(r.data.report) + '</div></details>' +
+      '</div>';
+  }
+  el.innerHTML = html;
 })();
 
 function renderReport(data, containerId) {
-  const container = document.getElementById(containerId);
-  container.innerHTML = `
-    <div class="result-card" style="margin-bottom:16px;">
-      <div style="font-size:11px;color:#666;margin-bottom:8px;">INDUSTRY</div>
-      <div style="font-size:14px;color:#fff;">${data.industry}</div>
-    </div>
-    <div class="result-card" style="margin-bottom:16px;">
-      <div style="font-size:11px;color:#666;margin-bottom:8px;">IDEA</div>
-      <div style="font-size:14px;color:#ddd;line-height:1.6;">${data.idea}</div>
-    </div>
-    <div class="result-card">
-      <div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#666;margin-bottom:12px;">Full Validation Report</div>
-      <div class="markdown-report">${renderMarkdown(data.report)}</div>
-    </div>
-  `;
+  var container = document.getElementById(containerId);
+  container.innerHTML =
+    '<div class="result-card" style="margin-bottom:16px;">' +
+      '<div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">INDUSTRY</div>' +
+      '<div style="font-size:15px;color:var(--white);font-weight:700;">' + data.industry + '</div>' +
+    '</div>' +
+    '<div class="result-card" style="margin-bottom:16px;">' +
+      '<div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">IDEA</div>' +
+      '<div style="font-size:14px;color:var(--text);line-height:1.6;">' + data.idea + '</div>' +
+    '</div>' +
+    '<div class="result-card">' +
+      '<div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:12px;">Full Validation Report</div>' +
+      renderCollapsibleReport(data.report) +
+    '</div>';
 }
 
 function renderMarkdown(md) {
@@ -122,8 +125,28 @@ function renderMarkdown(md) {
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/^- (.+)$/gm, '<li>$1</li>')
     .replace(/<li>([\s\S]*?)<\/li>(?!\s*<li>)/g, '<ul><li>$1</li></ul>')
-    .replace(/\(inferred\)/g, '<span style="color:#888;font-style:italic;">(inferred)</span>')
+    .replace(/\(inferred\)/g, '<span class="inferred">(inferred)</span>')
     .replace(/\n\n/g, '<br><br>');
+}
+
+function renderCollapsibleReport(md) {
+  var sections = md.split(/^(\d+\.\s+[A-Z][A-Z\s]+)$/gm);
+  var html = '';
+  for (var i = 1; i < sections.length; i += 2) {
+    var title = sections[i].trim();
+    var body = sections[i + 1] || '';
+    body = body
+      .replace(/^###?\s+(.+)$/gm, '<h4>$1</h4>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/^- (.+)$/gm, '<li>$1</li>')
+      .replace(/<li>([\s\S]*?)<\/li>(?!\s*<li>)/g, '<ul><li>$1</li></ul>')
+      .replace(/\(inferred\)/g, '<span class="inferred">(inferred)</span>')
+      .replace(/\n{2,}/g, '</p><p>')
+      .replace(/\n/g, '<br>');
+    html += '<details class="report-section"' + (i <= 2 ? ' open' : '') + '><summary>' + title + '</summary><div class="report-body"><p>' + body + '</p></div></details>';
+  }
+  return html;
 }
 </script>
 

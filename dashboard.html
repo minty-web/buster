@@ -12,13 +12,13 @@
   <div class="logo">
     <div class="logo-icon">
       <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M22 36C18 36 14 32 14 26C14 20 18 16 22 8" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
-        <path d="M22 36C26 36 30 32 30 26C30 20 26 16 22 8" stroke="#888" stroke-width="2.5" stroke-linecap="round"/>
-        <line x1="16" y1="36" x2="28" y2="36" stroke="#fff" stroke-width="3"/>
-        <line x1="18" y1="39" x2="26" y2="39" stroke="#fff" stroke-width="2.5"/>
-        <line x1="20" y1="42" x2="24" y2="42" stroke="#fff" stroke-width="2"/>
-        <path d="M10 22L18 14L24 20L30 10L38 6" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M32 6L38 6L38 12" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M22 36C18 36 14 32 14 26C14 20 18 16 22 8" stroke="#c8a44e" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M22 36C26 36 30 32 30 26C30 20 26 16 22 8" stroke="#8a7030" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="16" y1="36" x2="28" y2="36" stroke="#c8a44e" stroke-width="3"/>
+        <line x1="18" y1="39" x2="26" y2="39" stroke="#c8a44e" stroke-width="2.5"/>
+        <line x1="20" y1="42" x2="24" y2="42" stroke="#c8a44e" stroke-width="2"/>
+        <path d="M10 22L18 14L24 20L30 10L38 6" stroke="#f0f0f0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M32 6L38 6L38 12" stroke="#f0f0f0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </div>
     <div>
@@ -32,7 +32,7 @@
   </div>
   <div class="nav-links">
     <div class="user-profile" id="userBadge" title="User">G</div>
-    <a href="login.html" class="logout-link" onclick="localStorage.removeItem('buster_user')">LOGOUT</a>
+    <a href="login.html" onclick="localStorage.removeItem('buster_user')">LOGOUT</a>
   </div>
 </nav>
 
@@ -55,17 +55,19 @@
     </div>
 
     <textarea id="ideaInput" class="field-textarea" placeholder="Describe your startup idea in 1-2 sentences..."></textarea>
+    <div class="field-hint">Select an industry and describe your idea. The AI will analyze market viability, competitors, and risks.</div>
     <button class="btn-primary" id="btnAnalyze" onclick="analyzeIdea()">ANALYZE IDEA</button>
+    <div id="statusBar"></div>
 
-    <!-- GAP QUESTIONS (hidden by default) -->
+    <!-- GAP QUESTIONS -->
     <div id="gapQuestions" class="hidden gap-panel">
-      <div class="section-title" style="margin-bottom:16px;">Clarifying Questions</div>
+      <div class="gap-panel-title">Clarifying Questions</div>
       <div id="questionsList"></div>
-      <button class="btn-primary" id="btnSubmitAnswers" onclick="submitAnswers()">SUBMIT & GENERATE REPORT</button>
+      <button class="btn-primary" id="btnSubmitAnswers" onclick="submitAnswers()" style="margin-top:8px;">SUBMIT & GENERATE REPORT</button>
     </div>
   </div>
 
-  <!-- LEFT: AI CHAT -->
+  <!-- CHAT -->
   <div class="section chat-section">
     <div class="section-title">AI Chat</div>
     <div class="chat-box" id="chatBox">
@@ -80,11 +82,14 @@
     </div>
   </div>
 
-  <!-- RIGHT: IDEA HISTORY -->
+  <!-- HISTORY -->
   <div class="section history-section">
     <div class="section-title">Idea History</div>
     <div id="ideaHistory" class="history-box">
-      <div class="history-empty">No ideas analyzed yet.<br>Your history will appear here.</div>
+      <div class="history-empty">
+        <div class="history-empty-icon">◇</div>
+        No ideas analyzed yet.<br>Your history will appear here.
+      </div>
     </div>
   </div>
 
@@ -95,46 +100,58 @@
 </footer>
 
 <script>
-const history = [];
-let currentGapData = null;
-let currentAnswers = {};
+var history = [];
+var currentGapData = null;
+var currentAnswers = {};
 
-const storage = {
-  get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
-  set: (k, v) => localStorage.setItem(k, JSON.stringify(v))
+var storage = {
+  get: function(k) { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } },
+  set: function(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
 };
 
 (function init() {
-  const user = localStorage.getItem('buster_user') || 'Guest';
+  var user = localStorage.getItem('buster_user') || 'Guest';
   document.getElementById('userBadge').textContent = user.charAt(0).toUpperCase();
-  const saved = storage.get('buster_history') || [];
-  saved.forEach(h => history.push(h));
+  var saved = storage.get('buster_history') || [];
+  for (var i = 0; i < saved.length; i++) history.push(saved[i]);
   renderHistory();
 })();
 
-async function analyzeIdea() {
-  const industry = document.getElementById('industrySelect').value;
-  const input = document.getElementById('ideaInput').value.trim();
+function showStatus(msg, type) {
+  var bar = document.getElementById('statusBar');
+  if (!msg) { bar.innerHTML = ''; return; }
+  bar.innerHTML = '<div class="status-bar ' + type + '"><div class="status-dot ' + (type === 'info' ? 'active' : '') + '"></div>' + msg + '</div>';
+}
 
-  if (!industry) { alert('Please select an industry.'); return; }
-  if (!input) { alert('Please describe your idea.'); return; }
+function analyzeIdea() {
+  var industry = document.getElementById('industrySelect').value;
+  var input = document.getElementById('ideaInput').value.trim();
 
-  const btn = document.getElementById('btnAnalyze');
+  if (!industry) { showStatus('Please select an industry.', 'error'); return; }
+  if (!input) { showStatus('Please describe your idea.', 'error'); return; }
+  showStatus('', '');
+
+  var btn = document.getElementById('btnAnalyze');
   btn.disabled = true;
   btn.textContent = 'ANALYZING...';
 
   addChat('user', 'Industry: ' + industry + '\nIdea: ' + input);
+  addChat('ai', '<span class="loading">Running gap analysis...</span>');
 
-  try {
-    const gapRes = await fetch('/.netlify/functions/gap-analysis', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ideaText: input, industry })
-    });
-    const gapData = await gapRes.json();
+  fetch('/.netlify/functions/gap-analysis', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ideaText: input, industry: industry })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(gapData) {
+    var chatBox = document.getElementById('chatBox');
+    var loadingMsg = chatBox.querySelector('.loading');
+    if (loadingMsg) loadingMsg.parentElement.remove();
 
     if (gapData.error) {
-      addChat('ai', 'Error: ' + gapData.error);
+      addChat('error-msg', 'Error: ' + gapData.error);
+      showStatus('Analysis failed: ' + gapData.error, 'error');
       btn.disabled = false;
       btn.textContent = 'ANALYZE IDEA';
       return;
@@ -146,81 +163,88 @@ async function analyzeIdea() {
       showGapQuestions(gapData.questions);
       btn.disabled = false;
       btn.textContent = 'ANSWER QUESTIONS FIRST';
+      addChat('ai', 'I need a bit more context. Please answer the questions below.');
     } else {
-      await runValidation(input, industry, {});
+      runValidation(input, industry, {});
     }
-  } catch (err) {
-    addChat('ai', 'Error: ' + err.message);
+  })
+  .catch(function(err) {
+    addChat('error-msg', 'Error: ' + err.message);
+    showStatus('Network error. Please try again.', 'error');
     btn.disabled = false;
     btn.textContent = 'ANALYZE IDEA';
-  }
+  });
 }
 
 function showGapQuestions(questions) {
-  const container = document.getElementById('questionsList');
-  container.innerHTML = questions.map((q, i) =>
-    '<div class="gap-q">' +
-    '<label class="gap-q-label">Q' + (i + 1) + ': ' + q.question + '</label>' +
-    '<div class="gap-q-hint">Why it matters: ' + q.why_it_matters + '</div>' +
-    '<input type="text" id="answer' + i + '" class="gap-q-input" placeholder="Your answer...">' +
-    '</div>'
-  ).join('');
+  var container = document.getElementById('questionsList');
+  var html = '';
+  for (var i = 0; i < questions.length; i++) {
+    var q = questions[i];
+    html += '<div class="gap-q">' +
+      '<label class="gap-q-label">Q' + (i + 1) + ': ' + q.question + '</label>' +
+      '<div class="gap-q-hint">' + q.why_it_matters + '</div>' +
+      '<input type="text" id="answer' + i + '" class="gap-q-input" placeholder="Your answer...">' +
+      '</div>';
+  }
+  container.innerHTML = html;
   document.getElementById('gapQuestions').classList.remove('hidden');
   container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-async function submitAnswers() {
+function submitAnswers() {
   if (!currentGapData) return;
 
-  const answers = {};
-  currentGapData.questions.forEach((q, i) => {
+  var answers = {};
+  for (var i = 0; i < currentGapData.questions.length; i++) {
     answers[i] = document.getElementById('answer' + i).value.trim();
-  });
+  }
 
   currentAnswers = answers;
-  const btn = document.getElementById('btnSubmitAnswers');
+  var btn = document.getElementById('btnSubmitAnswers');
   btn.disabled = true;
   btn.textContent = 'GENERATING REPORT...';
 
-  const input = document.getElementById('ideaInput').value.trim();
-  const industry = document.getElementById('industrySelect').value;
+  var input = document.getElementById('ideaInput').value.trim();
+  var industry = document.getElementById('industrySelect').value;
 
-  await runValidation(input, industry, answers);
+  runValidation(input, industry, answers);
 }
 
-async function runValidation(ideaText, industry, answers) {
+function runValidation(ideaText, industry, answers) {
   addChat('ai', '<span class="loading">Generating validation report...</span>');
+  showStatus('Generating report...', 'info');
 
-  try {
-    const res = await fetch('/.netlify/functions/validate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ideaText, industry, answers })
-    });
-    const data = await res.json();
-
-    const chatBox = document.getElementById('chatBox');
-    const loadingMsg = chatBox.querySelector('.loading');
+  fetch('/.netlify/functions/validate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ideaText: ideaText, industry: industry, answers: answers })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    var chatBox = document.getElementById('chatBox');
+    var loadingMsg = chatBox.querySelector('.loading');
     if (loadingMsg) loadingMsg.parentElement.remove();
 
     if (data.error) {
-      addChat('ai', 'Error: ' + data.error);
+      addChat('error-msg', 'Error: ' + data.error);
+      showStatus('Report generation failed.', 'error');
       return;
     }
 
     if (!data.report) {
-      addChat('ai', 'Error: No report generated. Check Netlify function logs.');
-      console.error('Validate response:', data);
+      addChat('error-msg', 'Error: No report generated.');
+      showStatus('No report returned. Try again.', 'error');
       return;
     }
 
-    const reportDiv = document.createElement('div');
+    var reportDiv = document.createElement('div');
     reportDiv.className = 'chat-msg ai';
-    reportDiv.innerHTML = '<div class="label">Buster AI</div><div class="markdown-report">' + renderMarkdown(data.report) + '</div>';
+    reportDiv.innerHTML = '<div class="label">Validation Report</div>' + renderCollapsibleReport(data.report);
     chatBox.appendChild(reportDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    const result = { industry: industry, idea: ideaText, report: data.report, answers: answers, timestamp: Date.now() };
+    var result = { industry: industry, idea: ideaText, report: data.report, answers: answers, timestamp: Date.now() };
     history.unshift(ideaText);
     storage.set('buster_history', history);
     storage.set('buster_report_' + Date.now(), result);
@@ -231,14 +255,16 @@ async function runValidation(ideaText, industry, answers) {
     document.getElementById('btnAnalyze').textContent = 'ANALYZE IDEA';
     document.getElementById('btnSubmitAnswers').disabled = false;
     document.getElementById('btnSubmitAnswers').textContent = 'SUBMIT & GENERATE REPORT';
-
-  } catch (err) {
-    addChat('ai', 'Error: ' + err.message);
-  }
+    showStatus('Report generated successfully.', 'success');
+  })
+  .catch(function(err) {
+    addChat('error-msg', 'Error: ' + err.message);
+    showStatus('Network error.', 'error');
+  });
 }
 
 function sendChat() {
-  const input = document.getElementById('chatInput').value.trim();
+  var input = document.getElementById('chatInput').value.trim();
   if (!input) return;
   addChat('user', input);
   document.getElementById('chatInput').value = '';
@@ -258,7 +284,7 @@ function addChat(type, text) {
   var box = document.getElementById('chatBox');
   var div = document.createElement('div');
   div.className = 'chat-msg ' + type;
-  div.innerHTML = '<div class="label">' + (type === 'ai' ? 'Buster AI' : 'You') + '</div>' + text.replace(/\n/g, '<br>');
+  div.innerHTML = '<div class="label">' + (type === 'ai' ? 'Buster AI' : type === 'user' ? 'You' : type === 'error-msg' ? 'Error' : '') + '</div>' + text.replace(/\n/g, '<br>');
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
 }
@@ -266,24 +292,34 @@ function addChat(type, text) {
 function renderHistory() {
   var el = document.getElementById('ideaHistory');
   if (!history.length) {
-    el.innerHTML = '<div class="history-empty">No ideas analyzed yet.<br>Your history will appear here.</div>';
+    el.innerHTML = '<div class="history-empty"><div class="history-empty-icon">◇</div>No ideas analyzed yet.<br>Your history will appear here.</div>';
     return;
   }
-  el.innerHTML = history.map(function(h, i) {
-    return '<div class="history-item"><div class="hi-label">IDEA ' + (i + 1) + '</div><div class="hi-text">' + h + '</div></div>';
-  }).join('');
+  var html = '';
+  for (var i = 0; i < history.length; i++) {
+    html += '<div class="history-item"><div class="hi-label">IDEA ' + (i + 1) + '</div><div class="hi-text">' + history[i] + '</div></div>';
+  }
+  el.innerHTML = html;
 }
 
-function renderMarkdown(md) {
-  return md
-    .replace(/^(\d+\.\s+[A-Z][A-Z\s]+)$/gm, '<h3>$1</h3>')
-    .replace(/^###?\s+(.+)$/gm, '<h4>$1</h4>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/<li>([\s\S]*?)<\/li>(?!\s*<li>)/g, '<ul><li>$1</li></ul>')
-    .replace(/\(inferred\)/g, '<span style="color:#888;font-style:italic;">(inferred)</span>')
-    .replace(/\n\n/g, '<br><br>');
+function renderCollapsibleReport(md) {
+  var sections = md.split(/^(\d+\.\s+[A-Z][A-Z\s]+)$/gm);
+  var html = '';
+  for (var i = 1; i < sections.length; i += 2) {
+    var title = sections[i].trim();
+    var body = sections[i + 1] || '';
+    body = body
+      .replace(/^###?\s+(.+)$/gm, '<h4>$1</h4>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/^- (.+)$/gm, '<li>$1</li>')
+      .replace(/<li>([\s\S]*?)<\/li>(?!\s*<li>)/g, '<ul><li>$1</li></ul>')
+      .replace(/\(inferred\)/g, '<span class="inferred">(inferred)</span>')
+      .replace(/\n{2,}/g, '</p><p>')
+      .replace(/\n/g, '<br>');
+    html += '<details class="report-section"' + (i <= 2 ? ' open' : '') + '><summary>' + title + '</summary><div class="report-body"><p>' + body + '</p></div></details>';
+  }
+  return html;
 }
 </script>
 
