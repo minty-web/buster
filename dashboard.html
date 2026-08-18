@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>BUSTER - Dashboard</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<nav>
+<nav class="nav-main">
   <div class="logo">
     <div class="logo-icon">
       <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -32,19 +32,19 @@
   </div>
   <div class="nav-links">
     <div class="user-profile" id="userBadge" title="User">G</div>
-    <a href="login.html" style="color:#666;font-size:11px;letter-spacing:2px;" onclick="localStorage.removeItem('buster_user')">LOGOUT</a>
+    <a href="login.html" class="logout-link" onclick="localStorage.removeItem('buster_user')">LOGOUT</a>
   </div>
 </nav>
 
-<div class="main" style="display:grid;grid-template-columns:1fr 1fr;gap:0;max-width:1200px;margin:0 auto;">
+<div class="main-container">
 
   <!-- IDEA INPUT -->
-  <div class="section idea-section" style="grid-column:1/-1;">
+  <div class="section idea-section">
     <div class="section-title">Startup Idea</div>
 
-    <div style="margin-bottom:16px;">
-      <label style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#666;display:block;margin-bottom:8px;">INDUSTRY</label>
-      <select id="industrySelect" style="background:#1a1a1a;border:2px solid #444;color:#fff;font-family:inherit;font-size:14px;padding:12px;outline:none;cursor:pointer;">
+    <div class="field-group">
+      <label class="field-label">INDUSTRY</label>
+      <select id="industrySelect" class="field-select">
         <option value="">Select industry...</option>
         <option value="Manufacturing">Manufacturing</option>
         <option value="Health Tech">Health Tech</option>
@@ -54,19 +54,19 @@
       </select>
     </div>
 
-    <textarea id="ideaInput" placeholder="Describe your startup idea in 1-2 sentences..." style="width:100%;min-height:120px;background:#1a1a1a;border:2px solid #444;color:#fff;font-family:inherit;font-size:15px;padding:18px;resize:vertical;outline:none;"></textarea>
-    <button class="btn-primary" id="btnAnalyze" onclick="analyzeIdea()" style="margin-top:16px;">ANALYZE IDEA</button>
+    <textarea id="ideaInput" class="field-textarea" placeholder="Describe your startup idea in 1-2 sentences..."></textarea>
+    <button class="btn-primary" id="btnAnalyze" onclick="analyzeIdea()">ANALYZE IDEA</button>
 
     <!-- GAP QUESTIONS (hidden by default) -->
-    <div id="gapQuestions" class="hidden" style="margin-top:24px;border:2px solid #444;padding:20px;background:#0d0d0d;">
+    <div id="gapQuestions" class="hidden gap-panel">
       <div class="section-title" style="margin-bottom:16px;">Clarifying Questions</div>
       <div id="questionsList"></div>
-      <button class="btn-primary" id="btnSubmitAnswers" onclick="submitAnswers()" style="margin-top:16px;">SUBMIT & GENERATE REPORT</button>
+      <button class="btn-primary" id="btnSubmitAnswers" onclick="submitAnswers()">SUBMIT & GENERATE REPORT</button>
     </div>
   </div>
 
   <!-- LEFT: AI CHAT -->
-  <div class="section" style="flex:1;min-width:0;">
+  <div class="section chat-section">
     <div class="section-title">AI Chat</div>
     <div class="chat-box" id="chatBox">
       <div class="chat-msg ai">
@@ -75,22 +75,22 @@
       </div>
     </div>
     <div class="chat-input-row">
-      <input type="text" id="chatInput" placeholder="Ask a follow-up..." onkeydown="if(event.key==='Enter')sendChat()" style="flex:1;background:#1a1a1a;border:2px solid #444;color:#fff;font-family:inherit;font-size:13px;padding:12px;outline:none;">
+      <input type="text" id="chatInput" class="chat-input" placeholder="Ask a follow-up..." onkeydown="if(event.key==='Enter')sendChat()">
       <button class="btn-send" onclick="sendChat()">SEND</button>
     </div>
   </div>
 
   <!-- RIGHT: IDEA HISTORY -->
-  <div class="section" style="flex:1;min-width:0;">
+  <div class="section history-section">
     <div class="section-title">Idea History</div>
-    <div id="ideaHistory" style="border:2px solid #333;background:#0d0d0d;padding:18px;min-height:400px;">
-      <div style="color:#555;font-size:13px;">No ideas analyzed yet.<br>Your history will appear here.</div>
+    <div id="ideaHistory" class="history-box">
+      <div class="history-empty">No ideas analyzed yet.<br>Your history will appear here.</div>
     </div>
   </div>
 
 </div>
 
-<footer style="text-align:center;padding:24px;font-size:11px;color:#444;letter-spacing:2px;">
+<footer class="footer">
   BUSTER &mdash; IDEAS FOR STARTUPERS
 </footer>
 
@@ -123,7 +123,7 @@ async function analyzeIdea() {
   btn.disabled = true;
   btn.textContent = 'ANALYZING...';
 
-  addChat('user', `Industry: ${industry}\nIdea: ${input}`);
+  addChat('user', 'Industry: ' + industry + '\nIdea: ' + input);
 
   try {
     const gapRes = await fetch('/.netlify/functions/gap-analysis', {
@@ -147,7 +147,6 @@ async function analyzeIdea() {
       btn.disabled = false;
       btn.textContent = 'ANSWER QUESTIONS FIRST';
     } else {
-      // Skip to Stage 2
       await runValidation(input, industry, {});
     }
   } catch (err) {
@@ -159,14 +158,15 @@ async function analyzeIdea() {
 
 function showGapQuestions(questions) {
   const container = document.getElementById('questionsList');
-  container.innerHTML = questions.map((q, i) => `
-    <div style="margin-bottom:20px;">
-      <label style="font-size:13px;color:#ddd;display:block;margin-bottom:6px;">Q${i + 1}: ${q.question}</label>
-      <div style="font-size:11px;color:#666;margin-bottom:8px;font-style:italic;">Why it matters: ${q.why_it_matters}</div>
-      <input type="text" id="answer${i}" placeholder="Your answer..." style="width:100%;background:#1a1a1a;border:2px solid #444;color:#fff;font-family:inherit;font-size:13px;padding:12px;outline:none;">
-    </div>
-  `).join('');
+  container.innerHTML = questions.map((q, i) =>
+    '<div class="gap-q">' +
+    '<label class="gap-q-label">Q' + (i + 1) + ': ' + q.question + '</label>' +
+    '<div class="gap-q-hint">Why it matters: ' + q.why_it_matters + '</div>' +
+    '<input type="text" id="answer' + i + '" class="gap-q-input" placeholder="Your answer...">' +
+    '</div>'
+  ).join('');
   document.getElementById('gapQuestions').classList.remove('hidden');
+  container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 async function submitAnswers() {
@@ -174,7 +174,7 @@ async function submitAnswers() {
 
   const answers = {};
   currentGapData.questions.forEach((q, i) => {
-    answers[i] = document.getElementById(`answer${i}`).value.trim();
+    answers[i] = document.getElementById('answer' + i).value.trim();
   });
 
   currentAnswers = answers;
@@ -199,7 +199,6 @@ async function runValidation(ideaText, industry, answers) {
     });
     const data = await res.json();
 
-    // Remove loading message
     const chatBox = document.getElementById('chatBox');
     const loadingMsg = chatBox.querySelector('.loading');
     if (loadingMsg) loadingMsg.parentElement.remove();
@@ -215,27 +214,18 @@ async function runValidation(ideaText, industry, answers) {
       return;
     }
 
-    // Add report
     const reportDiv = document.createElement('div');
     reportDiv.className = 'chat-msg ai';
     reportDiv.innerHTML = '<div class="label">Buster AI</div><div class="markdown-report">' + renderMarkdown(data.report) + '</div>';
     chatBox.appendChild(reportDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    // Save to history
-    const result = {
-      industry,
-      idea: ideaText,
-      report: data.report,
-      answers,
-      timestamp: Date.now()
-    };
+    const result = { industry: industry, idea: ideaText, report: data.report, answers: answers, timestamp: Date.now() };
     history.unshift(ideaText);
     storage.set('buster_history', history);
     storage.set('buster_report_' + Date.now(), result);
     renderHistory();
 
-    // Reset form
     document.getElementById('gapQuestions').classList.add('hidden');
     document.getElementById('btnAnalyze').disabled = false;
     document.getElementById('btnAnalyze').textContent = 'ANALYZE IDEA';
@@ -253,20 +243,20 @@ function sendChat() {
   addChat('user', input);
   document.getElementById('chatInput').value = '';
 
-  setTimeout(() => {
-    const replies = [
+  setTimeout(function() {
+    var replies = [
       "That's a good follow-up. I'd recommend validating that assumption with 5-10 potential customers before committing resources.",
       "Based on the idea you shared, that area is a known risk factor. Consider starting with a narrow niche to reduce competition.",
       "For that question - the key metric to watch early on would be willingness-to-pay. Try a landing page with a pricing tier before building anything.",
-      "Good thinking. I suggest running a small paid test (even $50 in ads) to gauge real interest before scaling.",
+      "Good thinking. I suggest running a small paid test (even $50 in ads) to gauge real interest before scaling."
     ];
     addChat('ai', replies[Math.floor(Math.random() * replies.length)]);
   }, 800);
 }
 
 function addChat(type, text) {
-  const box = document.getElementById('chatBox');
-  const div = document.createElement('div');
+  var box = document.getElementById('chatBox');
+  var div = document.createElement('div');
   div.className = 'chat-msg ' + type;
   div.innerHTML = '<div class="label">' + (type === 'ai' ? 'Buster AI' : 'You') + '</div>' + text.replace(/\n/g, '<br>');
   box.appendChild(div);
@@ -274,19 +264,15 @@ function addChat(type, text) {
 }
 
 function renderHistory() {
-  const el = document.getElementById('ideaHistory');
+  var el = document.getElementById('ideaHistory');
   if (!history.length) {
-    el.innerHTML = '<div style="color:#555;font-size:13px;">No ideas analyzed yet.<br>Your history will appear here.</div>';
+    el.innerHTML = '<div class="history-empty">No ideas analyzed yet.<br>Your history will appear here.</div>';
     return;
   }
-  el.innerHTML = history.map((h, i) =>
-    '<div class="history-item">' +
-    '<div class="hi-label">IDEA ' + (i + 1) + '</div>' +
-    '<div class="hi-text">' + h + '</div></div>'
-  ).join('');
+  el.innerHTML = history.map(function(h, i) {
+    return '<div class="history-item"><div class="hi-label">IDEA ' + (i + 1) + '</div><div class="hi-text">' + h + '</div></div>';
+  }).join('');
 }
-
-/* ── Simple Markdown Renderer ── */
 
 function renderMarkdown(md) {
   return md
